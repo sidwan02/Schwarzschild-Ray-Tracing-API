@@ -1,4 +1,5 @@
 # https://colab.research.google.com/drive/14ngIoAYnXPfBXpThX7jxMALhWRq5826I?authuser=1#scrollTo=RLuJYQJw9GpK
+import matplotlib.pyplot as plt
 import math
 
 import numpy as np
@@ -32,7 +33,8 @@ def roots_fu(D, M):
         r1 = 2 * p3 * np.cos(theta)
         r2 = 2 * p3 * np.cos(theta - 2 * np.pi / 3)
         r3 = 2 * p3 * np.cos(theta - 4 * np.pi / 3)
-        rr = np.sort([r1, r2, r3]) + ofs  # Sort roots in ascending order, add offset
+        # Sort roots in ascending order, add offset
+        rr = np.sort([r1, r2, r3]) + ofs
 
     return rr
 
@@ -80,7 +82,8 @@ def if_D_gt_Dcrit_get_ray(D, r0, theta0, delta0, rstop, npoints):
         elif (rstop < -periastron) and (r0 == rf):
             print("hoho haha")
             if (npoints % 2 == 0):
-                rr_in = np.linspace(r0, periastron, int(npoints / 2), endpoint=False)
+                rr_in = np.linspace(r0, periastron, int(
+                    npoints / 2), endpoint=False)
                 uu_in = 1 / rr_in
                 phi_in = np.arcsin(np.sqrt((b2 - uu_in) / (b1 - uu_in) / m))
                 Fi_in = -updn * CC * ei(phi_in, m)
@@ -129,21 +132,22 @@ def if_D_gt_Dcrit_get_ray(D, r0, theta0, delta0, rstop, npoints):
                 rr = np.concatenate((rr_out, rr_in, [periastron], rr_in[::-1]))
                 Fi = np.concatenate((Fi_out, Fi_in, [0], -Fi_in[::-1]))
             else:
-                rr = np.concatenate((rr_in, [periastron], rr_in[::-1], rr_out[::-1]))
+                rr = np.concatenate(
+                    (rr_in, [periastron], rr_in[::-1], rr_out[::-1]))
                 Fi = np.concatenate((Fi_in, [0], -Fi_in[::-1], -Fi_out[::-1]))
         else:
             # print('this should not happen! bailing.')
             return 0
 
     # Rotate so that the polar angle of the starting point matches
-    theta_offset = Fi[0] - theta0
-    Fi = Fi - theta_offset
+    # theta_offset = Fi[0] - theta0
+    # Fi = Fi - theta_offset
     return rr, Fi
 
 
 def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
     print("delta0: ", delta0)
-    # print("greater than")
+    print("greater than")
     # inout = 1 for outward rays at (r0,theta0), and -1 for inward rays
     # updn = 1 for rays above the radial direction, -1 for those below
     inout, updn = np.sign(np.cos(delta0)), np.sign(np.sin(delta0))
@@ -165,56 +169,123 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
     if (inout == 1):  # outward rays
         print("hi")
         # rr = np.linspace(r0, rstop, npoints)
-        rr = np.linspace(r0, rstop, npoints)
+        # rr = np.linspace(r0, rstop, npoints)
 
         # uu = 1 / rr
         # phi = np.arcsin(np.sqrt((b2 - uu) / (b1 - uu) / m))
         # Fi = updn * CC * ei(phi, m)
 
-        def gt_recurring(r_acc, theta_acc, condition, count, maximum_r_change):
+        def get_theta(rr):
+            uu = 1 / rr
+            phi = np.arcsin(np.sqrt((b2 - uu) / (b1 - uu) / m))
+            Fi = updn * CC * ei(phi, m)
+
+            # Rotate so that the polar angle of the starting point matches
+            # if with_offset:
+            #     Fi = Fi - theta_offset
+
+            return Fi
+
+        # find the offset from seing how much the calculated theta differs from theta0
+        Fi_0 = get_theta(r0)
+        theta_offset = Fi_0 - theta0
+
+        def gt_recurring(r_acc, theta_acc, maximum_r_change):
             # print("r_acc: ", r_acc)
             recursionCompleted = False
 
-            if condition:
-                if r_acc[-1] >= rstop:
-                    recursionCompleted = True
-            else:
-                if r_acc[-1] <= rstop:
-                    recursionCompleted = True
+            if r_acc[-1] >= rstop:
+                recursionCompleted = True
 
             if recursionCompleted:
-                r_acc.pop()
-
-                return r_acc, np.array(theta_acc), count
+                return r_acc, np.array(theta_acc)
             else:
 
-                rr, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-                uu = 1 / rr
-                phi = np.arcsin(np.sqrt((b2 - uu) / (b1 - uu) / m))
-                Fi = updn * CC * ei(phi, m)
+                # rr, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
+                # some points eg periastron or the point on the event horizon? we know the r but not theta so this way we can add the corresponding theta.
+                # otherwise in the usual case we have the theta0 known if we are recursing from the start of the ray
+
+                if theta_acc == []:
+                    rr = r_acc[0]
+                    theta = get_theta(rr)
+                else:
+                    step_dist = None
+
+                    x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                    y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                    rr = r_acc[-1]
+                    # print("rr: ", rr)
+                    delta = 1e-1
+                    while True:
+                        # print("rr: ", rr)
+                        # if step_dist is None:
+                        #     pass
+                        # elif step_dist > maximum_r_change:
+                        #     if condition:
+                        #         rr += 1e-5
+                        #     else:
+                        #         rr -= 1e-5
+                        #     break
+                        # else:
+                        #     if condition:
+                        #         rr += 1e-5
+                        #     else:
+                        #         rr -= 1e-5
+                        if step_dist is None:
+                            pass
+                        elif abs(step_dist - maximum_r_change) < 1e-4:
+                            break
+                        elif step_dist < maximum_r_change:
+                            rr += delta
+
+                        elif step_dist > maximum_r_change:
+                            rr -= delta
+
+                            # do the while loop but using a smaller delta increment
+
+                            delta /= 2
+
+                            rr += delta
+
+                        else:
+                            rr += delta
+
+                        theta = get_theta(rr)
+
+                        x_curr = rr * np.cos(theta)
+                        y_curr = rr * np.sin(theta)
+
+                        # print("x_prev: ", x_prev)
+                        # print("y_prev: ", y_prev)
+                        # print("x_curr: ", x_curr)
+                        # print("y_curr: ", y_curr)
+
+                        step_dist = np.sqrt(
+                            (x_prev - x_curr) ** 2 + (y_prev - y_curr)**2)
+                        # print("step_dist: ", step_dist)
+
+                        # raise("blo")
+                    # print("rr: ", rr)
+                    print("step_dist FINAL: ", step_dist)
 
                 # print("Fi: ", Fi)
-                
-                print("x: ", rr * np.cos(Fi))
-                print("y: ", rr * np.sin(Fi))
 
-                r_acc.append(rr)
-                theta_acc.append(Fi)
+                if theta_acc == []:
+                    theta_acc.append(theta)
+                else:
+                    r_acc.append(rr)
+                    theta_acc.append(theta)
 
                 # print("r_acc: ", r_acc)
                 # print("theta_acc: ", theta_acc)
-                # raise("gogo")
 
-                return gt_recurring(r_acc, theta_acc, condition, count + 1, maximum_r_change)
-
-        if inout == 1:
-            condition = True
-        else:
-            condition = False
+                return gt_recurring(r_acc, theta_acc, maximum_r_change)
 
         # rr, Fi, count = gt_recurring([r0], [theta0], condition, 0, 0.01)
-        rr, Fi, count = gt_recurring([r0], [], condition, 0, maximum_r_change=1e-5)
-        print(count)
+        # rr, Fi, count = gt_recurring([r0], [], condition, 0, maximum_r_change=0.1)
+        rr, Fi = gt_recurring(
+            [r0], [], maximum_r_change=0.1)
 
     if (inout == -1):  # inward rays
         # print("inward ray")
@@ -226,32 +297,93 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
         elif (rstop > periastron):  # r0 and rstop on the same side of periastron
             print("same side")
 
+            def get_theta(rr):
+                uu = 1 / rr
+                phi = np.arcsin(np.sqrt((b2 - uu) / (b1 - uu) / m))
+                Fi = -updn * CC * ei(phi, m)
+
+                # if with_offset:
+                #     Fi = Fi - theta_offset
+
+                return Fi
+
+            Fi_0 = get_theta(r0)
+            theta_offset = Fi_0 - theta0
+
             def gt_recurring(r_acc, theta_acc, condition, count, maximum_r_change):
                 # print("r_acc: ", r_acc)
                 recursionCompleted = False
 
-                if condition:
-                    # if r_acc[-1] >= rf:
-                    if r_acc[-1] >= rf:
-                        r_acc.pop()
-                        theta_acc.pop()
-                        recursionCompleted = True
-                else:
-                    if r_acc[-1] <= rf:
-                        r_acc.pop()
-                        theta_acc.pop()
-                        recursionCompleted = True
+                if r_acc[-1] <= rf:
+                    # r_acc.pop()
+                    # theta_acc.pop()
+                    recursionCompleted = True
 
                 if recursionCompleted:
                     return r_acc, np.array(theta_acc), count
                 else:
-                    rr, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-                    uu = 1 / rr
-                    phi = np.arcsin(np.sqrt((b2 - uu) / (b1 - uu) / m))
-                    Fi = -updn * CC * ei(phi, m)
+                    # rr, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
+                    # some points eg periastron or the point on the event horizon? we know the r but not theta so this way we can add the corresponding theta.
+                    # otherwise in the usual case we have the theta0 known if we are recursing from the start of the ray
 
-                    r_acc.append(rr)
-                    theta_acc.append(Fi)
+                    if theta_acc == []:
+                        rr = r_acc[0]
+                        theta = get_theta(rr)
+                    else:
+                        step_dist = None
+
+                        x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                        y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                        rr = r_acc[-1]
+
+                        delta = 1e-1
+                        while True:
+                            # if step_dist is None:
+                            #     pass
+                            # elif step_dist > maximum_r_change:
+                            #     if condition:
+                            #         rr += 1e-5
+                            #     else:
+                            #         rr -= 1e-5
+                            #     break
+                            # else:
+                            #     if condition:
+                            #         rr += 1e-5
+                            #     else:
+                            #         rr -= 1e-5
+                            if step_dist is None:
+                                pass
+                            elif abs(step_dist - maximum_r_change) < 1e-4:
+                                break
+                            elif step_dist < maximum_r_change:
+                                rr -= delta
+
+                            elif step_dist > maximum_r_change:
+                                rr += delta
+
+                                # do the while loop but using a smaller delta increment
+
+                                delta /= 2
+
+                                rr -= delta
+
+                            else:
+                                rr -= delta
+
+                            theta = get_theta(rr)
+
+                            x_curr = rr * np.cos(theta)
+                            y_curr = rr * np.sin(theta)
+
+                            step_dist = np.sqrt(
+                                (x_prev - x_curr) ** 2 + (y_prev - y_curr)**2)
+
+                    if theta_acc == []:
+                        theta_acc.append(Fi)
+                    else:
+                        r_acc.append(rr)
+                        theta_acc.append(Fi)
 
                     # print("r_acc: ", r_acc[-1])
                     # print("theta_acc: ", theta_acc[-1])
@@ -260,12 +392,8 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
                     return gt_recurring(r_acc, theta_acc, condition, count + 1, maximum_r_change)
 
-            if rstop > r0:
-                condition = True
-            else:
-                condition = False
-
-            rr, Fi, count = gt_recurring([r0], [theta0], condition, 0, maximum_r_change=0.01)
+            rr, Fi, count = gt_recurring(
+                [r0], [theta0], condition, 0, maximum_r_change=0.1)
             print(count)
 
             print(rr[-1])
@@ -273,6 +401,22 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
         elif (rstop < -periastron) and (r0 == rf):
             print("rstop < -periastron")
+
+            def get_theta(rr_in, with_offset):
+                uu_in = 1 / rr_in
+                phi_in = np.arcsin(
+                    np.sqrt((b2 - uu_in) / (b1 - uu_in) / m))
+                Fi_in = -updn * CC * ei(phi_in, m)
+
+                # if with_offset:
+                #     Fi_in = Fi_in - theta_offset
+
+                return Fi_in
+
+                # return Fi_in  # this was Fi originally but I think that's a mistake and should be Fi_in
+
+            Fi_0 = get_theta(r0)
+            theta_offset = Fi_0 - theta0
 
             def gt_recurring(r_acc, theta_acc, condition, count, maximum_r_change):
                 # print("r_acc: ", r_acc)
@@ -284,20 +428,95 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
                 if recursionCompleted:
                     return r_acc, np.array(theta_acc), count
                 else:
-                    rr_in, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-                    uu_in = 1 / rr_in
-                    phi_in = np.arcsin(np.sqrt((b2 - uu_in) / (b1 - uu_in) / m))
-                    Fi_in = -updn * CC * ei(phi_in, m)
 
-                r_acc.append(rr)
-                theta_acc.append(Fi)
+                    if theta_acc == []:
+                        rr = r_acc[0]
+                        theta = get_theta(rr)
+                        # print("rr: ", rr)
+                        # print("theta: ", theta)
+                    else:
+                        step_dist = None
+                        # i = 1
+
+                        x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                        y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                        # print("x_prev: ", x_prev)
+                        # print("y_prev: ", y_prev)
+                        rr = r_acc[-1]
+                        delta = 1e-1
+                        while True:
+                            # if step_dist is None:
+                            #     pass
+                            # elif abs(step_dist - maximum_r_change) < 1e-4:
+                            #     break
+                            # elif step_dist > maximum_r_change:
+                            #     rr -= 1e-6
+                            # else:
+                            #     rr += 1e-5
+                            # if step_dist is None:
+                            #     pass
+                            # elif step_dist > maximum_r_change:
+                            #     rr += 1e-5
+                            #     break
+                            # else:
+                            #     rr += 1e-5
+                            if step_dist is None:
+                                pass
+                            elif abs(step_dist - maximum_r_change) < 1e-4:
+                                break
+                            elif step_dist < maximum_r_change:
+                                rr += delta
+                            elif step_dist > maximum_r_change:
+                                rr -= delta
+                                # do the while loop but using a smaller delta increment
+
+                                delta /= 2
+                                rr += delta
+                            else:
+                                rr += delta
+
+                            # print("rr: ", rr)
+                            # print("step_dist: ", step_dist)
+
+                            # print("maximum_r_change: ", maximum_r_change)
+
+                            # print("rr: ", rr)
+                            theta = get_theta(rr)
+
+                            # print("step_dist: ", step_dist)
+
+                            x_curr = rr * np.cos(theta)
+                            y_curr = rr * np.sin(theta)
+
+                            # print("x_curr: ", x_curr)
+                            # print("y_curr: ", y_curr)
+
+                            # print("x n y curr: ", [x_curr, y_curr])
+
+                            step_dist = np.sqrt(
+                                (x_prev - x_curr) ** 2 + (y_prev - y_curr)**2)
+
+                            # i += 1
+                            # print("step_dist: ", step_dist)
+
+                        # rr_in = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
+
+                    # r_acc.append(rr)
+                # theta_acc.append(theta)
+                    if theta_acc == []:
+                        theta_acc.append(theta)
+                    else:
+                        r_acc.append(rr)
+                        theta_acc.append(theta)
 
                 # print("r_acc: ", r_acc)
                 # print("theta_acc: ", theta_acc)
 
-                return gt_recurring(r_acc, theta_acc, condition, count + 1, maximum_r_change)
+                    return gt_recurring(r_acc, theta_acc, condition, count + 1, maximum_r_change)
 
-            rr_in, Fi_in, count = gt_recurring([r0], [theta0], True, 0, maximum_r_change=0.01)
+            rr_in, Fi_in, count = gt_recurring(
+                [r0], [theta0], True, 0, maximum_r_change=0.1)
             print(count)
 
             if (count % 2 == 0):
@@ -307,7 +526,8 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
             else:
                 # Put both sides of the ray together
                 rr = np.concatenate((rr_in, [periastron], rr_in[::-1]))
-                Fi = np.concatenate((Fi_in, [0], -Fi_in[::-1]))
+                Fi = np.concatenate(
+                    (Fi_in, [get_theta(periastron, True)], -Fi_in[::-1]))
         elif (rstop < -periastron) and (r0 != rf):
             print("(rstop < -periastron) and (r0 != rf)")
 
@@ -331,15 +551,60 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
             # Now first construct the ray between r_out and r_in in n_out points
 
+            def get_theta_1(rr_out):
+                uu_out = 1 / rr_out
+                # print(uu_out)
+                phi_out = np.arcsin(
+                    np.sqrt(np.abs(b2 - uu_out) / np.abs(b1 - uu_out) / m))
+
+                Fi_out = -updn * CC * ei(phi_out, m)
+
+                # if with_offset:
+                #     Fi_out = Fi_out - theta_offset
+
+                return Fi_out
+
+            def get_theta_2(rr_in):
+                uu_in = 1 / rr_in
+                # print("uu_in: ", uu_in)
+                # print("b2: ", b2)
+                # print("b1: ", b1)
+                # print("m: ", m)
+                phi_in = np.arcsin(
+                    np.sqrt(np.abs(b2 - uu_in) / np.abs(b1 - uu_in) / m))
+                # print(phi_in)
+                Fi_in = -updn * CC * ei(phi_in, m)
+
+                # if with_offset:
+                #     Fi_in = Fi_in - theta_offset
+
+                return Fi_in
+
+            if (r0 > rf):
+
+                Fi_0 = get_theta_1(r0)
+                theta_offset = Fi_0 - theta0
+            else:
+
+                Fi_0 = get_theta_2(r0)
+                theta_offset = Fi_0 - theta0
+
+                # start_x = r0 * np.cos(get_theta_2(r0, True))
+                # start_y = r0 * np.sin(get_theta_2(r0, True))
+                # print("start_x: ", start_x)
+                # print("start_y: ", start_y)
+
+            # r_out -> r_in
+
             def gt_recurring_1(r_acc, theta_acc, condition, count, maximum_r_change):
                 # print("r_acc: ", r_acc)
                 recursionCompleted = False
 
-                if r_acc[-1] >= r_out:
+                if r_acc[-1] <= r_in:
                     recursionCompleted = True
 
                 if recursionCompleted:
-                    r_acc.pop()
+                    # r_acc.pop()
 
                     # # final
                     # final_uu = 1 / r_out
@@ -351,34 +616,117 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
                     return r_acc, np.array(theta_acc), count
                 else:
-                    rr_out, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-                    uu_out = 1 / rr_out
-                    # print(uu_out)
-                    phi_out = np.arcsin(np.sqrt(np.abs(b2 - uu_out) / np.abs(b1 - uu_out) / m))
 
-                    Fi_out = -updn * CC * ei(phi_out, m)
+                    if theta_acc == []:
+                        rr = r_acc[0]
+                        theta = get_theta_1(rr)
+                        print("rr: ", rr)
+                        print("theta: ", theta)
+                    else:
+                        step_dist = None
+                        # i = 1
 
-                r_acc.append(rr_out)
-                theta_acc.append(Fi_out)
+                        x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                        y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                        # print("x_prev: ", x_prev)
+                        # print("y_prev: ", y_prev)
+                        rr = r_acc[-1]
+                        delta = 1e-1
+                        while True:
+                            # if step_dist is None:
+                            #     pass
+                            # elif abs(step_dist - maximum_r_change) < 1e-4:
+                            #     break
+                            # elif step_dist > maximum_r_change:
+                            #     rr -= 1e-6
+                            # else:
+                            #     rr += 1e-5
+                            # if step_dist is None:
+                            #     pass
+                            # elif step_dist > maximum_r_change:
+                            #     rr += 1e-5
+                            #     break
+                            # else:
+                            #     rr += 1e-5
+                            if step_dist is None:
+                                pass
+                            elif abs(step_dist - maximum_r_change) < 1e-4:
+                                break
+                            elif step_dist < maximum_r_change:
+                                rr -= delta
+                            elif step_dist > maximum_r_change:
+                                rr += delta
+                                # do the while loop but using a smaller delta increment
+
+                                delta /= 2
+                                rr -= delta
+                            else:
+                                rr -= delta
+
+                            # print("rr: ", rr)
+                            # print("step_dist: ", step_dist)
+
+                            # print("maximum_r_change: ", maximum_r_change)
+
+                            # print("rr: ", rr)
+                            theta = get_theta_1(rr)
+
+                            # print("step_dist: ", step_dist)
+
+                            x_curr = rr * np.cos(theta)
+                            y_curr = rr * np.sin(theta)
+
+                            # print("x_curr: ", x_curr)
+                            # print("y_curr: ", y_curr)
+
+                            # print("x n y curr: ", [x_curr, y_curr])
+
+                            step_dist = np.sqrt(
+                                (x_prev - x_curr) ** 2 + (y_prev - y_curr)**2)
+
+                            # i += 1
+                            # print("step_dist: ", step_dist)
+
+                        print("step_dist FINAL: ", step_dist)
+
+                    # print("theta: ", theta)
+
+                    if theta_acc == []:
+                        theta_acc.append(theta)
+                    else:
+                        r_acc.append(rr)
+                        theta_acc.append(theta)
+
+                    # print("r_acc: ", r_acc)
+                    # print("theta_acc: ", theta_acc)
+
+                    # return lr_recurring(r_acc, theta_acc, condition, maximum_r_change)
+
+                    return gt_recurring_1(r_acc, theta_acc, condition, count + 1, maximum_r_change)
+
+                #     rr_out = get_next_rr
+
+                # r_acc.append(rr_out)
+                # theta_acc.append(theta)
 
                 # print("r_acc: ", r_acc)
                 # print("theta_acc: ", theta_acc)
-
-                return gt_recurring_1(r_acc, theta_acc, condition, count + 1, maximum_r_change)
 
             # rr_out = np.linspace(r_out, r_in, n_out, endpoint=False)
             # And then construct the ray from r_in to almost periastron
             # rr_in = np.linspace(r_in, periastron, n_in, endpoint=False)
 
+            # r_in -> periastron
             def gt_recurring_2(r_acc, theta_acc, condition, count, maximum_r_change):
                 # print("r_acc: ", r_acc)
                 recursionCompleted = False
 
-                if r_acc[-1] >= r_in:
+                if r_acc[-1] <= periastron:
                     recursionCompleted = True
 
                 if recursionCompleted:
-                    r_acc.pop()  # this is because r_acc always contains 1 more element than theta_acc
+                    # r_acc.pop()  # this is because r_acc always contains 1 more element than theta_acc
 
                     # # final
                     # final_uu = 1 / periastron
@@ -390,23 +738,104 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
                     return r_acc, np.array(theta_acc), count
                 else:
-                    rr_in, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-                    uu_in = 1 / rr_in
-                    # print("uu_in: ", uu_in)
-                    # print("b2: ", b2)
-                    # print("b1: ", b1)
-                    # print("m: ", m)
-                    phi_in = np.arcsin(np.sqrt(np.abs(b2 - uu_in) / np.abs(b1 - uu_in) / m))
-                    print(phi_in)
-                    Fi_in = -updn * CC * ei(phi_in, m)
 
-                r_acc.append(rr_in)
-                theta_acc.append(Fi_in)
+                    if theta_acc == []:
+                        rr = r_acc[0]
+                        theta = get_theta_2(rr)
+                        print("rr: ", rr)
+                        print("theta: ", theta)
+                    else:
+                        step_dist = None
+                        # i = 1
+
+                        x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                        y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                        # print("x_prev: ", x_prev)
+                        # print("y_prev: ", y_prev)
+                        rr = r_acc[-1]
+                        delta = 1e-1
+                        while True:
+                            # if step_dist is None:
+                            #     pass
+                            # elif abs(step_dist - maximum_r_change) < 1e-4:
+                            #     break
+                            # elif step_dist > maximum_r_change:
+                            #     rr -= 1e-6
+                            # else:
+                            #     rr += 1e-5
+                            # if step_dist is None:
+                            #     pass
+                            # elif step_dist > maximum_r_change:
+                            #     rr += 1e-5
+                            #     break
+                            # else:
+                            #     rr += 1e-5
+                            if step_dist is None:
+                                pass
+                            elif abs(step_dist - maximum_r_change) < 1e-4:
+                                break
+                            elif step_dist < maximum_r_change:
+                                rr -= delta
+                            elif step_dist > maximum_r_change:
+                                rr += delta
+                                # do the while loop but using a smaller delta increment
+
+                                delta /= 2
+                                rr -= delta
+                            else:
+                                rr -= delta
+
+                            # print("rr: ", rr)
+                            # print("step_dist: ", step_dist)
+
+                            # print("maximum_r_change: ", maximum_r_change)
+
+                            # print("rr: ", rr)
+                            theta = get_theta_2(rr)
+
+                            # print("step_dist: ", step_dist)
+
+                            x_curr = rr * np.cos(theta)
+                            y_curr = rr * np.sin(theta)
+
+                            print("x_curr: ", x_curr)
+                            print("y_curr: ", y_curr)
+
+                            # print("x n y curr: ", [x_curr, y_curr])
+
+                            step_dist = np.sqrt(
+                                (x_prev - x_curr) ** 2 + (y_prev - y_curr)**2)
+
+                            # i += 1
+                            # print("step_dist: ", step_dist)
+
+                        print("step_dist FINAL: ", step_dist)
+
+                    # print("theta: ", theta)
+
+                    if theta_acc == []:
+                        theta_acc.append(theta)
+                    else:
+                        r_acc.append(rr)
+                        theta_acc.append(theta)
+
+                    # print("r_acc: ", r_acc)
+                    # print("theta_acc: ", theta_acc)
+
+                    # return lr_recurring(r_acc, theta_acc, condition, maximum_r_change)
+
+                    # return gt_recurring_1(r_acc, theta_acc, condition, count + 1, maximum_r_change)
+
+                    # rr maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
+
+                # r_acc.append(rr_in)
+                # theta_acc.append(Fi_in)
 
                 # print("r_acc: ", r_acc)
                 # print("theta_acc: ", theta_acc)
 
-                return gt_recurring_2(r_acc, theta_acc, condition, count + 1, maximum_r_change)
+                    return gt_recurring_2(r_acc, theta_acc, condition, count + 1, maximum_r_change)
 
             # print(r_out)
             # print(r_in)
@@ -415,11 +844,13 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
             # rr_out, Fi_out, count = gt_recurring_1([r_in], [], True, 0, maximum_r_change=0.01)
             # # rr_out, Fi_out, count = (np.array([]), np.array([]), 0)
 
-            rr_out, Fi_out, count = gt_recurring_1([periastron], [], True, 0, maximum_r_change=0.01)
+            rr_out, Fi_out, count = gt_recurring_1(
+                [r_out], [], True, 0, maximum_r_change=0.5)
             # rr_out, Fi_out, count = (np.array([]), np.array([]), 0)
 
             print(count)
-            rr_in, Fi_in, count = gt_recurring_2([periastron], [], True, 0, maximum_r_change=0.001)
+            rr_in, Fi_in, count = gt_recurring_2(
+                [r_in], [], True, 0, maximum_r_change=0.5)
             # rr_in, Fi_in, count = (np.array([]), np.array([]), 0)
 
             print(count)
@@ -432,37 +863,38 @@ def if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
                 print("hobo")
 
-                rr = np.concatenate((rr_out[::-1], rr_in[::-1], [periastron], rr_in))
-                # Fi = np.concatenate((Fi_out, Fi_in, [0], -Fi_in[::-1]))
-                Fi = np.concatenate((Fi_out[::-1], Fi_in[::-1], [0], -Fi_in))
+                # rr = np.concatenate(
+                #     (rr_out[::-1], rr_in[::-1], [periastron], rr_in))
+                # # Fi = np.concatenate((Fi_out, Fi_in, [0], -Fi_in[::-1]))
+                # Fi = np.concatenate((Fi_out[::-1], Fi_in[::-1], [0], -Fi_in))
+
+                rr = np.concatenate(
+                    (rr_out, rr_in, [periastron], rr_in[::-1]))
+                Fi = np.concatenate(
+                    (Fi_out, Fi_in, [-get_theta_1(periastron)], -Fi_in[::-1]))
+            # it so happens that in either case get_theta_1/2(periastron, True) = 0 - theta_offset
             else:
 
                 print("gobo")
 
-                # rr = np.concatenate((rr_in[::-1], [periastron], rr_in, rr_out))
-                # # Fi = np.concatenate((Fi_in, [0], -Fi_in[::-1], -Fi_out[::-1]))
-                # Fi = np.concatenate((Fi_in[::-1], [0], -Fi_in, -Fi_out))
-                #
-                # rr = np.concatenate((rr_in[::-1], [periastron], rr_in, rr_out))
-                # # Fi = np.concatenate((Fi_in, [0], -Fi_in[::-1], -Fi_out[::-1]))
-                # Fi = np.concatenate((Fi_in[::-1], [0], -Fi_in, -Fi_out))
-
-                rr = np.concatenate((rr_in[::-1], [periastron], rr_out))
-                # Fi = np.concatenate((Fi_in, [0], -Fi_in[::-1], -Fi_out[::-1]))
-                Fi = np.concatenate((Fi_in[::-1], [0], -Fi_out))
-
+                rr = rr_in
+                Fi = Fi_in
+                # rr = np.concatenate(
+                #     (rr_in, [periastron], rr_in[::-1],  rr_out[::-1]))
+                # Fi = np.concatenate(
+                #     (Fi_in, [get_theta_2(periastron)], -Fi_in[::-1], -Fi_out[::-1]))
 
         else:
             # print('this should not happen! bailing.')
             return 0
 
     # Rotate so that the polar angle of the starting point matches
-    theta_offset = Fi[0] - theta0
-    Fi = Fi - theta_offset
+    # theta_offset = Fi[0] - theta0
+    # Fi = Fi - theta_offset
     return rr, Fi
 
 
-def get_next_rr(r_acc, theta_acc, condition, maximum_r_change):
+def get_next_rr2(r_acc, theta_acc, condition, maximum_r_change):
     if len(r_acc) <= 5:
         if condition:
             # rr = r_acc[-1] + 1e-3
@@ -532,7 +964,8 @@ def get_next_rr(r_acc, theta_acc, condition, maximum_r_change):
 
         if math.isnan(theta_acc[-1]):
             print("is nan")
-            print("rstop is not 1, there is some issue because the ray should be falling into BH")
+            print(
+                "rstop is not 1, there is some issue because the ray should be falling into BH")
 
         angle_change = abs(theta_acc[-1] - theta_acc[-2])
         # print("theta_acc: ", theta_acc)
@@ -555,6 +988,40 @@ def get_next_rr(r_acc, theta_acc, condition, maximum_r_change):
             rr = r_acc[-1] - delta_rr
 
     return rr, maximum_r_change
+
+
+def get_next_rr(r_acc, theta_acc, condition, maximum_r_change):
+    # print("r_acc: ", r_acc)
+    # print("theta_acc: ", theta_acc)
+
+    x_arr = r_acc * np.cos(theta_acc)
+    y_arr = r_acc * np.sin(theta_acc)
+
+    # print("x_arr: ", x_arr)
+
+    # if math.isnan(theta_acc[-1]):
+    #     print("is nan")
+    #     print("rstop is not 1, there is some issue because the ray should be falling into BH")
+
+    target_step = maximum_r_change
+    # print(x_arr)
+    if len(r_acc) < 2:
+        delta_rr = target_step
+    else:
+        # print(len(r_acc))
+        # print(r_acc)
+        prev_step = math.sqrt(
+            (x_arr[-1] - x_arr[-2]) ** 2 + (y_arr[-1] - y_arr[-2]) ** 2)
+
+        delta_rr = target_step + (target_step - prev_step) / 1e5
+
+    if condition:
+        rr = r_acc[-1] + delta_rr
+    else:
+        rr = r_acc[-1] - delta_rr
+
+    return rr, maximum_r_change
+
 
 def if_D_lt_Dcrit_get_ray(D, r0, theta0, delta0, rstop, npoints):
     # print("within lesser")
@@ -626,7 +1093,7 @@ def if_D_lt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
         #     if r_acc[-1] <= rstop:
         #         recursionCompleted = True
 
-        print("cur r: ", r_acc[-1])
+        # print("cur r: ", r_acc[-1])
         if r_acc[-1] >= rstop:
             recursionCompleted = True
 
@@ -634,29 +1101,111 @@ def if_D_lt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
         #     recursionCompleted = True
 
         if recursionCompleted:
-            r_acc.pop()
+            # because the last point will be beyond the bound
 
             return r_acc, theta_acc
+
         else:
-            rr, maximum_r_change = get_next_rr(r_acc, theta_acc, condition, maximum_r_change)
-            # print("rr: ", rr)
+            # some points eg periastron or the point on the event horizon? we know the r but not theta so this way we can add the corresponding theta.
+            # otherwise in the usual case we have the theta0 known if we are recursing from the start of the ray
+            # print("r_acc start: ", r_acc)
+            # print("theta_acc start: ", theta_acc)
+            def get_theta(rr):
+                uu = 1 / rr
 
-            uu = 1 / rr
+                u_s = 1 / r0
 
-            u_s = 1 / r0
+                phi_s = np.arccos((lambda2 - u_s + beta) /
+                                  (lambda2 + u_s - beta))
+                Fs = ei(phi_s, m)
 
-            phi_s = np.arccos((lambda2 - u_s + beta) / (lambda2 + u_s - beta))
-            Fs = ei(phi_s, m)
+                phi = np.arccos((lambda2 - uu + beta) / (lambda2 + uu - beta))
+                Fr = ei(phi, m)
+                theta = (Fs - Fr) / np.sqrt(2 * lambda2)
 
-            phi = np.arccos((lambda2 - uu + beta) / (lambda2 + uu - beta))
-            Fr = ei(phi, m)
-            theta = (Fs - Fr) / np.sqrt(2 * lambda2)
+                theta = inout * updn * theta + theta0
+                return theta
 
-            theta = inout * updn * theta + theta0
+            if theta_acc == []:
+                rr = r_acc[0]
+                theta = get_theta(rr)
+                print("rr: ", rr)
+                print("theta: ", theta)
+            else:
+                step_dist = None
+                # i = 1
+
+                x_prev = r_acc[-1] * np.cos(theta_acc[-1])
+                y_prev = r_acc[-1] * np.sin(theta_acc[-1])
+
+                # print("x_prev: ", x_prev)
+                # print("y_prev: ", y_prev)
+                delta = 1e-1
+                rr = r_acc[-1]
+                while True:
+                    # if step_dist is None:
+                    #     pass
+                    # elif abs(step_dist - maximum_r_change) < 1e-4:
+                    #     break
+                    # elif step_dist > maximum_r_change:
+                    #     rr -= 1e-6
+                    # else:
+                    #     rr += 1e-5
+                    # if step_dist is None:
+                    #     pass
+                    # elif step_dist > maximum_r_change:
+                    #     rr += 1e-5
+                    #     break
+                    # else:
+                    #     rr += 1e-5
+                    if step_dist is None:
+                        pass
+                    elif abs(step_dist - maximum_r_change) < 1e-4:
+                        break
+                    elif step_dist < maximum_r_change:
+                        rr += delta
+                    elif step_dist > maximum_r_change:
+                        rr -= delta
+                        # do the while loop but using a smaller delta increment
+
+                        delta /= 2
+                        rr += delta
+                    else:
+                        rr += delta
+
+                    # print("rr: ", rr)
+                    # print("step_dist: ", step_dist)
+
+                    # print("maximum_r_change: ", maximum_r_change)
+
+                    # print("rr: ", rr)
+                    theta = get_theta(rr)
+
+                    # print("step_dist: ", step_dist)
+
+                    x_curr = rr * np.cos(theta)
+                    y_curr = rr * np.sin(theta)
+
+                    # print("x_curr: ", x_curr)
+                    # print("y_curr: ", y_curr)
+
+                    # print("x n y curr: ", [x_curr, y_curr])
+
+                    step_dist = np.sqrt((x_prev - x_curr) **
+                                        2 + (y_prev - y_curr)**2)
+
+                    # i += 1
+                    # print("step_dist: ", step_dist)
+
+                print("step_dist FINAL: ", step_dist)
+
             # print("theta: ", theta)
 
-            r_acc.append(rr)
-            theta_acc.append(theta[0])
+            if theta_acc == []:
+                theta_acc.append(theta[0])
+            else:
+                r_acc.append(rr)
+                theta_acc.append(theta[0])
 
             # print("r_acc: ", r_acc)
             # print("theta_acc: ", theta_acc)
@@ -678,7 +1227,7 @@ def if_D_lt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
             theta = np.repeat(theta0, 70)
         else:
             # rr, theta = lr_recurring([r0], [], True, 0.01)
-            rr, theta = lr_recurring([r0], [], True, 5e-3)
+            rr, theta = lr_recurring([r0], [theta0], True, 0.1)
 
     else:
         print("falling into bh")
@@ -691,7 +1240,7 @@ def if_D_lt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints):
 
         print("AA rstop_original: ", rstop_original)
 
-        rr, theta = lr_recurring([rstop_original], [], True, 1e-3)
+        rr, theta = lr_recurring([rstop_original], [], True, 0.1)
         rr = rr[::-1]
         theta = theta[::-1]
 
@@ -766,7 +1315,8 @@ def schwarzschild_get_ray(r0, theta0, delta0, rstop, npoints):
         # print("greater")
         # for r = 10, delta = 100 D > Dcrit
         # rr, theta = if_D_gt_Dcrit_get_ray(D, r0, theta0, delta0, rstop, npoints)
-        rr, theta = if_D_gt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints)
+        rr, theta = if_D_gt_Dcrit_get_ray_recusive_main(
+            D, r0, theta0, delta0, rstop, npoints)
         # if rstop > r0:
         #     condition = True
         # else:
@@ -775,7 +1325,8 @@ def schwarzschild_get_ray(r0, theta0, delta0, rstop, npoints):
     elif (D < Dcrit):
         # print("lesser")
         # rr, theta = if_D_lt_Dcrit_get_ray(D, r0, theta0, delta0, rstop, npoints)
-        rr, theta = if_D_lt_Dcrit_get_ray_recusive_main(D, r0, theta0, delta0, rstop, npoints)
+        rr, theta = if_D_lt_Dcrit_get_ray_recusive_main(
+            D, r0, theta0, delta0, rstop, npoints)
 
     return rr, theta
 
@@ -839,11 +1390,11 @@ def get_rstop(M, r0, delta0):
             escape_to_inf = True
             print("case 3")
 
-
         print("escape_to_inf: ", escape_to_inf)
         if escape_to_inf:
             # rstop > r0
-            if r0 > np.sqrt(20 ** 2 + 40 ** 2):  # values determined from bounds of build traces screen
+            # values determined from bounds of build traces screen
+            if r0 > np.sqrt(20 ** 2 + 40 ** 2):
                 rstop = r0 + np.sqrt(20 ** 2 + 40 ** 2) + 5  # 5 buffer
             else:
                 rstop = np.sqrt(20 ** 2 + 40 ** 2) + 5  # 5 buffer
@@ -889,7 +1440,11 @@ def schwarzschild_get_ray_cartesian(x, y, delta0):
 
     # delta0 = np.rad2deg(delta0)
 
-    r_arr, theta_arr = schwarzschild_get_ray(r0, theta0, delta0, rstop, npoints)
+    r_arr, theta_arr = schwarzschild_get_ray(
+        r0, theta0, delta0, rstop, npoints)
+
+    r_arr = np.array(r_arr)
+    theta_arr = np.array(theta_arr)
 
     x_arr = r_arr * np.cos(theta_arr)
     y_arr = r_arr * np.sin(theta_arr)
@@ -926,16 +1481,30 @@ def cur_delta(x_arr, y_arr):
 # r_arr, theta_arr = schwarzschild_get_ray(3.1, 0, np.deg2rad(90), 10, 183)
 
 # same side
-# r_arr, theta_arr = schwarzschild_get_ray(3.1, 0, np.deg2rad(100), 10, 183)
+# the the fourth param is a default rstop idiot that's why it wasn't fricking working
+# r_arr, theta_arr = schwarzschild_get_ray(3.1, 0, np.deg2rad(93.2), 1, 183)
 # print(r_arr[-1])
 # print(theta_arr[-1])
 
 # x_arr, y_arr = schwarzschild_get_ray_cartesian(-12.575892530168806, -28.240477062406995, 172.3370949374974)
-# x_arr, y_arr = schwarzschild_get_ray_cartesian(6, 70, 3)
+# x_arr, y_arr = schwarzschild_get_ray_cartesian(3.1, 0, 93.2)
+# x_arr, y_arr = schwarzschild_get_ray_cartesian(
+#     4.568303484235491, 1.7663091750372018, 124.53541588641113)
+
+# NOT WORKING ONE
+# x_arr, y_arr = schwarzschild_get_ray_cartesian(
+#     2.061160539899554, 4.921190824962798, 91.33888855136273)
+x_arr, y_arr = schwarzschild_get_ray_cartesian(
+    4.2147317940848215, 7.037262602306548, -143.07550332021083)
+# x_arr, y_arr = schwarzschild_get_ray_cartesian(
+#     5.84999995640346, 2.007380952380952, 129.6854610993363)
+# x_arr2, y_arr2 = schwarzschild_get_ray_cartesian(
+#     2.061160539899554, 4.921190824962798, 81.33888855136273)
+
+
 # x_arr, y_arr = schwarzschild_get_ray_cartesian(3.1, 0, 93.2)
 
 # x_arr, y_arr = schwarzschild_get_ray_cartesian(3, 0, 0)
-x_arr, y_arr = schwarzschild_get_ray_cartesian(2.061160539899554, 4.921190824962798, 81.33888855136273)
 
 # r_arr, theta_arr = schwarzschild_get_ray(6, np.deg2rad(70), np.deg2rad(45), 10, 183)
 # x = 3.1 * np.cos(np.deg2rad(45))
@@ -956,23 +1525,24 @@ x_arr, y_arr = schwarzschild_get_ray_cartesian(2.061160539899554, 4.921190824962
 # (rstop < -periastron) and (r0 != rf)
 # r_arr, theta_arr = schwarzschild_get_ray(3.1, np.deg2rad(45), np.deg2rad(94), 10, 183)
 # #
-import matplotlib.pyplot as plt
 
 
 # plt.axes(projection='polar')
-# plt.polar(theta7_arr, r_arr, 'b-', marker='o')
-#
+# plt.polar(theta_arr, r_arr, 'b-', marker='o')
+
 # plt.figure(figsize=(12, 12))
-#
+
 fig = plt.figure()
 ax = fig.add_subplot(111)
-# #
-# #
+
+
 ax.set_aspect('equal', adjustable='box')
-#
-#
+
+
 plt.plot(x_arr, y_arr, marker='o')
-# plt.plot(x_arr, y_arr)
+plt.plot(x_arr, y_arr)
+# plt.plot(x_arr2, y_arr2, marker='o')
+# plt.plot(x_arr2, y_arr2)
 
 # plt.title('Ray from (' + str(round(x_arr[0], 2)) + ', ' + str(round(y_arr[0], 2)) + ') with delta0 ' + str(delta0))
 #
